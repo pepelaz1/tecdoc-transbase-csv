@@ -135,9 +135,9 @@ internal static class Exporter
     private static void Usage()
     {
         Console.WriteLine("Экспорт таблицы TecDoc/Transbase в CSV (нужна штатная утилита Transbase tbi)");
-        Console.WriteLine("  --database <database-directory-or-URL> --table <table> --output <file.csv>");
-        Console.WriteLine("  [--tbi <tbi.exe>] [--user <database-user>]");
-        Console.WriteLine("  --self-test");
+        Console.WriteLine("  --database <каталог-базы-или-URL> --table <имя-таблицы> --output <файл.csv>");
+        Console.WriteLine("  [--tbi <путь-к-tbi.exe>] [--user <пользователь-базы>]");
+        Console.WriteLine("  --self-test  Проверить генерацию скрипта без базы данных");
     }
 
     private sealed record Options(string Database, string Table, string Output, string Tbi, string? User);
