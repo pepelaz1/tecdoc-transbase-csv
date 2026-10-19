@@ -27,7 +27,7 @@ internal static class Exporter
             var output = Path.GetFullPath(o.Output);
             Directory.CreateDirectory(Path.GetDirectoryName(output)!);
             if (File.Exists(output))
-                throw new ArgumentException($"Output already exists: {output}");
+                throw new ArgumentException($"Выходной файл уже существует: {output}");
 
             var csv = Path.Combine(Path.GetDirectoryName(output)!,
                 $".{Path.GetFileName(output)}.{Guid.NewGuid():N}.tmp");
@@ -44,17 +44,17 @@ internal static class Exporter
                     start.ArgumentList.Add(arg);
                 if (o.User is not null) start.ArgumentList.Add(o.User);
 
-                Console.WriteLine($"Exporting {o.Table} from {database}...");
-                Console.WriteLine("Transbase tbi may request credentials in this terminal.");
+                Console.WriteLine($"Экспорт таблицы {o.Table} из {database}...");
+                Console.WriteLine("Transbase tbi может запросить учётные данные в этом терминале.");
                 using var process = Process.Start(start)
-                    ?? throw new InvalidOperationException("Could not start Transbase tbi.");
+                    ?? throw new InvalidOperationException("Не удалось запустить Transbase tbi.");
                 await process.WaitForExitAsync();
                 if (process.ExitCode != 0)
-                    throw new InvalidOperationException($"Transbase tbi failed: exit code {process.ExitCode}.");
+                    throw new InvalidOperationException($"Ошибка Transbase tbi: код выхода {process.ExitCode}.");
                 if (!File.Exists(csv))
-                    throw new InvalidOperationException("Transbase tbi did not create a CSV file.");
+                    throw new InvalidOperationException("Transbase tbi не создал CSV-файл.");
                 File.Move(csv, output);
-                Console.WriteLine($"Saved: {output} ({new FileInfo(output).Length:N0} bytes)");
+                Console.WriteLine($"Сохранено: {output} ({new FileInfo(output).Length:N0} байт)");
                 return 0;
             }
             finally
@@ -65,7 +65,7 @@ internal static class Exporter
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Error: {ex.Message}");
+            Console.Error.WriteLine($"Ошибка: {ex.Message}");
             return 1;
         }
     }
@@ -76,21 +76,21 @@ internal static class Exporter
         for (int i = 0; i < args.Length; i += 2)
         {
             if (i + 1 >= args.Length || !args[i].StartsWith("--", StringComparison.Ordinal))
-                throw new ArgumentException("Expected --option value pairs. Use --help.");
+                throw new ArgumentException("Ожидаются пары --параметр значение. Используйте --help.");
             if (!values.TryAdd(args[i], args[i + 1]))
-                throw new ArgumentException($"Duplicate option: {args[i]}");
+                throw new ArgumentException($"Параметр указан повторно: {args[i]}");
         }
         foreach (var key in values.Keys)
             if (key is not ("--database" or "--table" or "--output" or "--tbi" or "--user"))
-                throw new ArgumentException($"Unknown option: {key}");
+                throw new ArgumentException($"Неизвестный параметр: {key}");
         if (!values.TryGetValue("--database", out var db) ||
             !values.TryGetValue("--table", out var table) ||
             !values.TryGetValue("--output", out var output))
-            throw new ArgumentException("--database, --table and --output are required.");
+            throw new ArgumentException("Обязательные параметры: --database, --table и --output.");
         if (!SafeName.IsMatch(table))
-            throw new ArgumentException("--table must be a SQL identifier, optionally schema.table.");
+            throw new ArgumentException("--table должен содержать имя SQL-таблицы, возможно с префиксом схемы.");
         if (string.IsNullOrWhiteSpace(db) || string.IsNullOrWhiteSpace(output))
-            throw new ArgumentException("Database and output cannot be empty.");
+            throw new ArgumentException("Пути к базе и выходному файлу не могут быть пустыми.");
         return new(db, table, output, values.GetValueOrDefault("--tbi") ?? "tbi",
             values.GetValueOrDefault("--user"));
     }
@@ -100,10 +100,10 @@ internal static class Exporter
         if (input.StartsWith("file://", StringComparison.OrdinalIgnoreCase) ||
             input.StartsWith("//", StringComparison.Ordinal)) return input;
         if (Path.GetExtension(input).Equals(".bdf", StringComparison.OrdinalIgnoreCase))
-            throw new ArgumentException("A single .bdf is not a standalone database. Provide its complete Transbase database directory.");
+            throw new ArgumentException("Отдельный .bdf не является полной базой. Укажите каталог базы Transbase целиком.");
         var path = Path.GetFullPath(input);
         if (!Directory.Exists(path))
-            throw new DirectoryNotFoundException($"Database directory not found: {path}");
+            throw new DirectoryNotFoundException($"Каталог базы не найден: {path}");
         return new Uri(path.TrimEnd(Path.DirectorySeparatorChar) +
             Path.DirectorySeparatorChar).AbsoluteUri.TrimEnd('/');
     }
@@ -120,21 +120,21 @@ internal static class Exporter
         if (!script.Contains("a''b.csv") ||
             !script.Contains("SELECT * FROM articles_linkages") ||
             !script.Contains("CODEPAGE UTF8"))
-            throw new InvalidOperationException("Script generation failed.");
+            throw new InvalidOperationException("Ошибка генерации SQL-скрипта.");
         try
         {
             Parse(["--database", ".", "--table", "x;DROP TABLE y", "--output", "x.csv"]);
-            throw new InvalidOperationException("Unsafe table name accepted.");
+            throw new InvalidOperationException("Принято недопустимое имя таблицы.");
         }
         catch (ArgumentException) { }
-        Console.WriteLine("Self-test passed: script generation and table validation.");
-        Console.WriteLine("This does not test a real Transbase database.");
+        Console.WriteLine("Самопроверка пройдена: генерация скрипта и проверка имени таблицы.");
+        Console.WriteLine("Настоящая база Transbase при этом не проверяется.");
         return 0;
     }
 
     private static void Usage()
     {
-        Console.WriteLine("TecDoc/Transbase table to CSV (requires official Transbase tbi)");
+        Console.WriteLine("Экспорт таблицы TecDoc/Transbase в CSV (нужна штатная утилита Transbase tbi)");
         Console.WriteLine("  --database <database-directory-or-URL> --table <table> --output <file.csv>");
         Console.WriteLine("  [--tbi <tbi.exe>] [--user <database-user>]");
         Console.WriteLine("  --self-test");

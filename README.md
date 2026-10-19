@@ -1,14 +1,16 @@
-# TecDoc Transbase table to CSV
+# Экспорт таблицы TecDoc / Transbase в CSV
 
-A small .NET 8 console wrapper around the **official Transbase `tbi`** exporter. It exports one SQL table to UTF-8, semicolon-delimited DSV/CSV without loading the whole result into .NET memory.
+Небольшая консольная программа на .NET 8 запускает штатную утилиту **Transbase `tbi`** и выгружает одну SQL-таблицу в UTF-8 CSV с разделителем `;`. Результат формирует сама Transbase без загрузки всей таблицы в память .NET.
 
-## Important limitation
+## Что требуется
 
-This does **not** parse a standalone `.bdf` binary. TecDoc's Transbase data must be opened as a complete database with a compatible Transbase installation. The database directory, and possibly its configuration, indexes, credentials and matching Transbase version, are required.
+- Установленная совместимая версия Transbase с `tbi`.
+- Полный каталог базы данных, а не один файл `.bdf`, либо адрес работающего сервера Transbase.
+- Имя таблицы в реальной схеме базы. Обозначение TecDoc «таблица 400» и имя `articles_linkages` ещё нужно сопоставить с конкретной базой.
 
-No public TecDoc Transbase sample database was available during development. `--self-test` checks script generation and input validation only; it **does not prove** that table 400 can be exported from the customer's data. A real acceptance test needs a legally shareable sample or access to the customer's full database directory and installed Transbase runtime. The project's “articles_linkages / table 400” names may describe different schemas; inspect the actual table list first.
+**Пока нет подтверждения работы на базе TecDoc.** Открытый образец Transbase `.bdf` найти не удалось, установленной Transbase в среде разработки нет. Произвольный файл с расширением `.bdf` не является настоящей базой и не годится для такой проверки. Проверки ниже подтверждают только сборку, генерацию команды и взаимодействие с тестовым имитатором `tbi`. Для приёмки нужен совместимый комплект базы TecDoc и Transbase.
 
-## Build and run
+## Сборка и запуск
 
 ```powershell
 dotnet build -c Release
@@ -16,15 +18,24 @@ dotnet run -c Release -- --self-test
 dotnet run -c Release -- --database "C:\TecDoc\Database" --table articles_linkages --output "C:\Exports\articles_linkages.csv" --tbi "C:\Transbase\bin\tbi.exe"
 ```
 
-For a Transbase server, `--database "//localhost:2024/tecdoc"` can be used instead. `--user` is optional; `tbi` can prompt for credentials in the terminal. No password is accepted on the command line, to avoid exposing it in process lists. The tool refuses to overwrite an existing output file. It writes to a temporary file and renames it only after `tbi` reports success.
+Для подключения к серверу можно указать `--database "//localhost:2024/tecdoc"`. Параметр `--user` необязателен; `tbi` может запросить пароль в терминале. Программа не принимает пароль в командной строке, чтобы не показывать его в списке процессов.
 
-The Transbase DSV spooler does not generate a column-name header. If a downstream importer requires a header, confirm the actual column names and add it in a separate step. The export must be checked against the customer's expected TecDoc CSV layout before delivery.
+Существующий выходной файл не перезаписывается. Экспорт сначала выполняется во временный файл рядом с целевым, и только после успешного завершения `tbi` файл переименовывается. Выгрузка DSV не содержит строку с названиями столбцов. Перед передачей результата нужно проверить схему, число строк, кодировку и ожидаемый формат CSV заказчика.
 
-## Sources
+## Проверки
 
-- [Transbase TBI command-line reference](https://www.transaction.de/fileadmin/public/transbase/8.3/docu/tbi.pdf): `-s`, `-f`, database URL and exit status.
-- [Transbase SQL reference, DSV spooler](https://www.transaction.de/transbase/doku-v83/sql-reference-manual.html): `SPOOL INTO`, UTF-8, delimiters, quoting.
-- [Transbase system guide](https://www.transaction.de/transbase/doku-v83/system-guide.html): private databases consist of multiple files and are addressed by a database directory.
-- [TecDoc data format 2.7](https://tec-doc-services.com/download/TecDoc-Data-Format_Version_2.7_EN.pdf): table 400 is “Article Linkage”; exchange CSV uses semicolons and UTF-8. This exchange specification does not define a Transbase database schema.
+```powershell
+dotnet run -c Release -- --self-test
+powershell -ExecutionPolicy Bypass -File tests/Run-Integration.ps1
+```
 
-No TecDoc database files or customer data are included.
+Вторая команда запускает приложение с **имитатором `tbi`**, который создаёт маленький CSV без чтения `.bdf`. Она проверяет запуск внешней программы, передачу SQL-скрипта, создание и перенос CSV, защиту от перезаписи и обработку ошибок. Это **не** тест совместимости с TecDoc или настоящей Transbase.
+
+## Документация формата и инструментов
+
+- [Transbase TBI: параметры `-s`, `-f` и код завершения](https://www.transaction.de/fileadmin/public/transbase/8.3/docu/tbi.pdf).
+- [Transbase SQL: `SPOOL INTO`, DSV и UTF-8](https://www.transaction.de/en/transbase/doku-v83/sql-reference-manual.html).
+- [Transbase System Guide: каталог частной базы и её файлы](https://www.transaction.de/transbase/doku-v83/system-guide.html).
+- [TecDoc Data Format 2.7: таблица 400 — Article Linkage](https://tec-doc-services.com/download/TecDoc-Data-Format_Version_2.7_EN.pdf). Это описание обменного формата, а не схемы конкретной базы Transbase.
+
+Файлы TecDoc и данные заказчика в репозиторий не включены.
